@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -7,16 +9,31 @@ using UnityEngine;
 public class SaveSystem : MonoBehaviour
 {
     private const string c_SaveKey = "_game_save";
+    private const int c_Version = 1;
 
-    [System.Serializable]
+    [Serializable]
     private class SaveData
     {
+        public int version;
         public int bestScore;
         public int totalCoins;
         public bool adFree;
+        public List<string> unlockedCharacters = new List<string>();
+        public List<string> purchasedUpgrades = new List<string>();
+        public SettingsData settings = new SettingsData();
+        public int adTotalRunCount;
+        public string lastInterstitial;
+        public string lastRewarded;
     }
 
-    private SaveData m_data = new SaveData();
+    [Serializable]
+    public class SettingsData
+    {
+        public float musicVolume = 1f;
+        public float sfxVolume = 1f;
+    }
+
+    private SaveData m_data = new SaveData { version = c_Version };
 
     /// <summary>
     /// Load persistent data from PlayerPrefs.
@@ -27,6 +44,12 @@ public class SaveSystem : MonoBehaviour
         {
             string json = PlayerPrefs.GetString(c_SaveKey);
             m_data = JsonUtility.FromJson<SaveData>(json);
+            if (m_data.version != c_Version)
+                Migrate(m_data.version);
+        }
+        else
+        {
+            m_data = new SaveData { version = c_Version };
         }
     }
 
@@ -35,6 +58,7 @@ public class SaveSystem : MonoBehaviour
     /// </summary>
     public void Save()
     {
+        m_data.version = c_Version;
         string json = JsonUtility.ToJson(m_data);
         PlayerPrefs.SetString(c_SaveKey, json);
         PlayerPrefs.Save();
@@ -65,5 +89,51 @@ public class SaveSystem : MonoBehaviour
     {
         get => m_data.adFree;
         set => m_data.adFree = value;
+    }
+
+    public IList<string> UnlockedCharacters => m_data.unlockedCharacters;
+
+    public bool IsCharacterUnlocked(string id) => m_data.unlockedCharacters.Contains(id);
+
+    public void UnlockCharacter(string id)
+    {
+        if (!m_data.unlockedCharacters.Contains(id))
+            m_data.unlockedCharacters.Add(id);
+    }
+
+    public IList<string> PurchasedUpgrades => m_data.purchasedUpgrades;
+
+    public bool HasUpgrade(string id) => m_data.purchasedUpgrades.Contains(id);
+
+    public void PurchaseUpgrade(string id)
+    {
+        if (!m_data.purchasedUpgrades.Contains(id))
+            m_data.purchasedUpgrades.Add(id);
+    }
+
+    public SettingsData Settings => m_data.settings;
+
+    public int AdTotalRunCount
+    {
+        get => m_data.adTotalRunCount;
+        set => m_data.adTotalRunCount = value;
+    }
+
+    public DateTime LastInterstitialShown
+    {
+        get => DateTime.TryParse(m_data.lastInterstitial, out var dt) ? dt : DateTime.MinValue;
+        set => m_data.lastInterstitial = value.ToString("o");
+    }
+
+    public DateTime LastRewardedShown
+    {
+        get => DateTime.TryParse(m_data.lastRewarded, out var dt) ? dt : DateTime.MinValue;
+        set => m_data.lastRewarded = value.ToString("o");
+    }
+
+    private void Migrate(int fromVersion)
+    {
+        // Placeholder for future save migrations
+        m_data.version = c_Version;
     }
 }

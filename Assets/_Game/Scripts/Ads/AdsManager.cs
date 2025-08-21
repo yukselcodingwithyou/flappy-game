@@ -8,6 +8,7 @@ public class AdsManager : MonoBehaviour
 {
     [SerializeField] private AdPolicy m_policy;
     [SerializeField] private bool m_testMode = true;
+    [SerializeField] private SaveSystem m_saveSystem;
 
     private IAdNetworkAdapter m_adapter;
     private float m_lastInterstitialTime;
@@ -20,9 +21,6 @@ public class AdsManager : MonoBehaviour
     private int m_totalRunCount;
     private DateTime m_lastInterstitialShown;
     private DateTime m_lastRewardedShown;
-    private const string kPrefTotalRuns = "ads_total_runs";
-    private const string kPrefLastInterstitial = "ads_last_interstitial";
-    private const string kPrefLastRewarded = "ads_last_rewarded";
     private bool m_adFree;
 
     /// <summary>
@@ -33,11 +31,17 @@ public class AdsManager : MonoBehaviour
     public void Initialize(IAdNetworkAdapter adapter, ConsentState consent, bool adFree = false)
     {
         m_consent = consent;
-        m_totalRunCount = PlayerPrefs.GetInt(kPrefTotalRuns, 0);
-        if (PlayerPrefs.HasKey(kPrefLastInterstitial))
-            DateTime.TryParse(PlayerPrefs.GetString(kPrefLastInterstitial), out m_lastInterstitialShown);
-        if (PlayerPrefs.HasKey(kPrefLastRewarded))
-            DateTime.TryParse(PlayerPrefs.GetString(kPrefLastRewarded), out m_lastRewardedShown);
+        if (m_saveSystem != null)
+        {
+            m_saveSystem.Load();
+            m_totalRunCount = m_saveSystem.AdTotalRunCount;
+            m_lastInterstitialShown = m_saveSystem.LastInterstitialShown;
+            m_lastRewardedShown = m_saveSystem.LastRewardedShown;
+        }
+        else
+        {
+            m_totalRunCount = 0;
+        }
 
         m_adFree = adFree || (m_policy != null && m_policy.adFree);
 
@@ -57,7 +61,11 @@ public class AdsManager : MonoBehaviour
     {
         m_runsSinceInterstitial++;
         m_totalRunCount++;
-        PlayerPrefs.SetInt(kPrefTotalRuns, m_totalRunCount);
+        if (m_saveSystem != null)
+        {
+            m_saveSystem.AdTotalRunCount = m_totalRunCount;
+            m_saveSystem.Save();
+        }
     }
 
     /// <summary>
@@ -79,8 +87,11 @@ public class AdsManager : MonoBehaviour
         m_adapter.LoadInterstitial();
         m_lastInterstitialTime = Time.realtimeSinceStartup;
         m_lastInterstitialShown = DateTime.UtcNow;
-        PlayerPrefs.SetString(kPrefLastInterstitial, m_lastInterstitialShown.ToString("o"));
-        PlayerPrefs.Save();
+        if (m_saveSystem != null)
+        {
+            m_saveSystem.LastInterstitialShown = m_lastInterstitialShown;
+            m_saveSystem.Save();
+        }
         m_sessionInterstitialCount++;
         m_runsSinceInterstitial = 0;
     }
@@ -102,8 +113,11 @@ public class AdsManager : MonoBehaviour
         m_adapter.LoadRewarded();
         m_lastRewardedTime = Time.realtimeSinceStartup;
         m_lastRewardedShown = DateTime.UtcNow;
-        PlayerPrefs.SetString(kPrefLastRewarded, m_lastRewardedShown.ToString("o"));
-        PlayerPrefs.Save();
+        if (m_saveSystem != null)
+        {
+            m_saveSystem.LastRewardedShown = m_lastRewardedShown;
+            m_saveSystem.Save();
+        }
         m_sessionRewardedCount++;
     }
 
