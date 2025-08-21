@@ -7,6 +7,10 @@ Core gameplay scaffolding is provided including managers, player components and 
 The skeleton also includes a persistent save system and configurable ad policy for frequency-capped interstitial and rewarded ads.
 Ad policy now supports consent-gated operation, ad-free purchase disabling, and run/session tracking for timestamp-based caps.
 
+## Setup
+
+This project stores image and audio assets using [Git LFS](https://git-lfs.com/). Install Git LFS before cloning so these files download correctly.
+
 Project structure:
 
 ```
