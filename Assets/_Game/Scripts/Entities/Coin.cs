@@ -19,6 +19,11 @@ public class Coin : MonoBehaviour, IPooled
     private void Collect()
     {
         OnCollected?.Invoke(m_value);
+
+        // Inform the GameManager of the coin pickup so HUD can update the count.
+        var gm = FindObjectOfType<GameManager>();
+        gm?.AddCoins(m_value);
+
         gameObject.SetActive(false);
     }
 

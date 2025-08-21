@@ -11,7 +11,14 @@ public class BuffController : MonoBehaviour
 
     private readonly Dictionary<BuffType, float> m_active = new Dictionary<BuffType, float>();
 
-    public event Action<BuffType> OnBuffStarted;
+    /// <summary>
+    /// Invoked when a buff begins. The float parameter represents the duration in seconds.
+    /// </summary>
+    public event Action<BuffType, float> OnBuffStarted;
+
+    /// <summary>
+    /// Invoked when a buff expires.
+    /// </summary>
     public event Action<BuffType> OnBuffEnded;
 
     /// <summary>
@@ -21,11 +28,14 @@ public class BuffController : MonoBehaviour
     {
         float end = Time.time + duration;
         if (m_active.ContainsKey(type))
+        {
             m_active[type] = end;
+        }
         else
         {
             m_active.Add(type, end);
-            OnBuffStarted?.Invoke(type);
+            // Notify listeners with the total duration of the buff so UI timers can be displayed.
+            OnBuffStarted?.Invoke(type, duration);
         }
     }
 
