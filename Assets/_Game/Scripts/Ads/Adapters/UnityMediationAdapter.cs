@@ -12,8 +12,11 @@ public class UnityMediationAdapter : IAdNetworkAdapter
     public event Action OnAdClosed;
     public event Action OnAdRewarded;
 
-    public bool IsInterstitialReady => false;
-    public bool IsRewardedReady => false;
+    private bool m_interstitialReady;
+    private bool m_rewardedReady;
+
+    public bool IsInterstitialReady => m_interstitialReady;
+    public bool IsRewardedReady => m_rewardedReady;
 
     public void Initialize(ConsentState consent)
     {
@@ -23,21 +26,42 @@ public class UnityMediationAdapter : IAdNetworkAdapter
     public void LoadInterstitial()
     {
         Debug.Log("[UnityMediation] Load interstitial");
+        m_interstitialReady = true;
+        OnAdLoaded?.Invoke();
     }
 
     public void ShowInterstitial()
     {
+        if (!m_interstitialReady)
+        {
+            OnAdFailed?.Invoke("Interstitial not ready");
+            return;
+        }
         Debug.Log("[UnityMediation] Show interstitial");
+        m_interstitialReady = false;
+        OnAdShown?.Invoke();
+        OnAdClosed?.Invoke();
     }
 
     public void LoadRewarded()
     {
         Debug.Log("[UnityMediation] Load rewarded");
+        m_rewardedReady = true;
+        OnAdLoaded?.Invoke();
     }
 
     public void ShowRewarded()
     {
+        if (!m_rewardedReady)
+        {
+            OnAdFailed?.Invoke("Rewarded not ready");
+            return;
+        }
         Debug.Log("[UnityMediation] Show rewarded");
+        m_rewardedReady = false;
+        OnAdShown?.Invoke();
+        OnAdRewarded?.Invoke();
+        OnAdClosed?.Invoke();
     }
 
     public void ShowBanner()
