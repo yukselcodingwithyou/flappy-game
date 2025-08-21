@@ -5,6 +5,7 @@ It demonstrates an extensible architecture using ScriptableObjects, object pooli
 and an ad mediation layer via `AdsManager` and pluggable `IAdNetworkAdapter` implementations.
 Core gameplay scaffolding is provided including managers, player components and utilities.
 The skeleton also includes a persistent save system and configurable ad policy for frequency-capped interstitial and rewarded ads.
+Ad policy now supports consent-gated operation, ad-free purchase disabling, and run/session tracking for timestamp-based caps.
 
 Project structure:
 

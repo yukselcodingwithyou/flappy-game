@@ -11,21 +11,43 @@ public class AdsManager : MonoBehaviour
 
     private IAdNetworkAdapter m_adapter;
     private float m_lastInterstitialTime;
+    private float m_lastRewardedTime;
     private int m_runsSinceInterstitial;
     private int m_sessionInterstitialCount;
+    private int m_sessionRewardedCount;
     private bool m_skipInterstitial;
+    private ConsentState m_consent = ConsentState.Unknown;
+    private int m_totalRunCount;
+    private DateTime m_lastInterstitialShown;
+    private DateTime m_lastRewardedShown;
+    private const string kPrefTotalRuns = "ads_total_runs";
+    private const string kPrefLastInterstitial = "ads_last_interstitial";
+    private const string kPrefLastRewarded = "ads_last_rewarded";
+    private bool m_adFree;
 
     /// <summary>
     /// Initialize the ads system using the provided adapter.
     /// </summary>
     /// <param name="adapter">Concrete network adapter.</param>
     /// <param name="consent">User consent state.</param>
-    public void Initialize(IAdNetworkAdapter adapter, ConsentState consent)
+    public void Initialize(IAdNetworkAdapter adapter, ConsentState consent, bool adFree = false)
     {
-        m_adapter = adapter;
-        m_adapter.Initialize(consent);
-        m_adapter.LoadInterstitial();
-        m_adapter.LoadRewarded();
+        m_consent = consent;
+        m_totalRunCount = PlayerPrefs.GetInt(kPrefTotalRuns, 0);
+        if (PlayerPrefs.HasKey(kPrefLastInterstitial))
+            DateTime.TryParse(PlayerPrefs.GetString(kPrefLastInterstitial), out m_lastInterstitialShown);
+        if (PlayerPrefs.HasKey(kPrefLastRewarded))
+            DateTime.TryParse(PlayerPrefs.GetString(kPrefLastRewarded), out m_lastRewardedShown);
+
+        m_adFree = adFree || (m_policy != null && m_policy.adFree);
+
+        if (CanUseAds && adapter != null)
+        {
+            m_adapter = adapter;
+            m_adapter.Initialize(consent);
+            m_adapter.LoadInterstitial();
+            m_adapter.LoadRewarded();
+        }
     }
 
     /// <summary>
@@ -34,6 +56,8 @@ public class AdsManager : MonoBehaviour
     public void NotifyRunStarted()
     {
         m_runsSinceInterstitial++;
+        m_totalRunCount++;
+        PlayerPrefs.SetInt(kPrefTotalRuns, m_totalRunCount);
     }
 
     /// <summary>
@@ -41,7 +65,7 @@ public class AdsManager : MonoBehaviour
     /// </summary>
     public void TryShowInterstitial()
     {
-        if (m_policy == null || m_adapter == null) return;
+        if (!CanUseAds || m_adapter == null) return;
         if (m_skipInterstitial)
         {
             m_skipInterstitial = false;
@@ -54,6 +78,9 @@ public class AdsManager : MonoBehaviour
         m_adapter.ShowInterstitial();
         m_adapter.LoadInterstitial();
         m_lastInterstitialTime = Time.realtimeSinceStartup;
+        m_lastInterstitialShown = DateTime.UtcNow;
+        PlayerPrefs.SetString(kPrefLastInterstitial, m_lastInterstitialShown.ToString("o"));
+        PlayerPrefs.Save();
         m_sessionInterstitialCount++;
         m_runsSinceInterstitial = 0;
     }
@@ -63,7 +90,7 @@ public class AdsManager : MonoBehaviour
     /// </summary>
     public void TryShowRewarded(Action onReward)
     {
-        if (m_adapter == null || !m_adapter.IsRewardedReady) return;
+        if (!CanUseAds || m_adapter == null || !m_adapter.IsRewardedReady) return;
         void RewardHandler()
         {
             onReward?.Invoke();
@@ -73,6 +100,11 @@ public class AdsManager : MonoBehaviour
         m_adapter.OnAdRewarded += RewardHandler;
         m_adapter.ShowRewarded();
         m_adapter.LoadRewarded();
+        m_lastRewardedTime = Time.realtimeSinceStartup;
+        m_lastRewardedShown = DateTime.UtcNow;
+        PlayerPrefs.SetString(kPrefLastRewarded, m_lastRewardedShown.ToString("o"));
+        PlayerPrefs.Save();
+        m_sessionRewardedCount++;
     }
 
     /// <summary>
@@ -80,7 +112,7 @@ public class AdsManager : MonoBehaviour
     /// </summary>
     public void ShowBanner()
     {
-        if (m_policy != null && m_policy.bannerEnabled)
+        if (CanUseAds && m_policy != null && m_policy.bannerEnabled)
             m_adapter?.ShowBanner();
     }
 
@@ -97,9 +129,11 @@ public class AdsManager : MonoBehaviour
     /// </summary>
     public void ApplyAdFree()
     {
-        m_policy = null;
+        m_adFree = true;
         m_adapter?.HideBanner();
     }
+
+    private bool CanUseAds => m_policy != null && !m_adFree && (!m_policy.requiresConsent || m_consent == ConsentState.Accepted);
 }
 
 /// <summary>
@@ -121,4 +155,8 @@ public class AdPolicy : ScriptableObject
     public bool rewardedContinueEnabled = true;
     public bool rewardedDoubleCoinsEnabled = true;
     public bool rewardedStartPowerUpEnabled = true;
+    [Tooltip("If true, ads are disabled entirely.")]
+    public bool adFree = false;
+    [Tooltip("If true, ads are only shown when consent is accepted.")]
+    public bool requiresConsent = false;
 }
